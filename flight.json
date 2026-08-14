@@ -1,0 +1,124 @@
+{
+  "frames": [
+    {
+      "cmd": "INIT",
+      "line": 0,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 0.00,
+      "heading": 0.00,
+      "battery": 100.00,
+      "speed": 1.00,
+      "flying": false
+    },
+    {
+      "cmd": "SET BATTERY 100",
+      "line": 1,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 0.00,
+      "heading": 0.00,
+      "battery": 100.00,
+      "speed": 1.00,
+      "flying": false
+    },
+    {
+      "cmd": "SET SPEED 1.5",
+      "line": 2,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 0.00,
+      "heading": 0.00,
+      "battery": 100.00,
+      "speed": 1.50,
+      "flying": false
+    },
+    {
+      "cmd": "TAKEOFF",
+      "line": 3,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 2.00,
+      "heading": 0.00,
+      "battery": 100.00,
+      "speed": 1.50,
+      "flying": true
+    },
+    {
+      "cmd": "MOVE FORWARD 10.0",
+      "line": 4,
+      "x": 0.00,
+      "y": 15.00,
+      "z": 2.00,
+      "heading": 0.00,
+      "battery": 82.00,
+      "speed": 1.50,
+      "flying": true
+    },
+    {
+      "cmd": "TURN RIGHT 90",
+      "line": 5,
+      "x": 0.00,
+      "y": 15.00,
+      "z": 2.00,
+      "heading": 90.00,
+      "battery": 82.00,
+      "speed": 1.50,
+      "flying": true
+    },
+    {
+      "cmd": "MOVE FORWARD 8.0",
+      "line": 6,
+      "x": 12.00,
+      "y": 15.00,
+      "z": 2.00,
+      "heading": 90.00,
+      "battery": 67.60,
+      "speed": 1.50,
+      "flying": true
+    },
+    {
+      "cmd": "HOVER 3.0",
+      "line": 7,
+      "x": 12.00,
+      "y": 15.00,
+      "z": 2.00,
+      "heading": 90.00,
+      "battery": 66.10,
+      "speed": 1.50,
+      "flying": true
+    },
+    {
+      "cmd": "RETURN_HOME",
+      "line": 8,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 2.00,
+      "heading": 90.00,
+      "battery": 43.05,
+      "speed": 1.50,
+      "flying": true
+    },
+    {
+      "cmd": "LAND",
+      "line": 9,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 0.00,
+      "heading": 90.00,
+      "battery": 43.05,
+      "speed": 1.50,
+      "flying": false
+    }
+  ],
+  "errors": [
+  ],
+  "final_state": {
+    "x": 0.00,
+    "y": 0.00,
+    "z": 0.00,
+    "heading": 90.00,
+    "battery": 43.05,
+    "flying": false
+  }
+}

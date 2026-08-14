@@ -1,0 +1,82 @@
+{
+  "frames": [
+    {
+      "cmd": "INIT",
+      "line": 0,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 0.00,
+      "heading": 0.00,
+      "battery": 100.00,
+      "speed": 1.00,
+      "flying": false
+    },
+    {
+      "cmd": "TAKEOFF",
+      "line": 2,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 2.00,
+      "heading": 0.00,
+      "battery": 100.00,
+      "speed": 1.00,
+      "flying": true
+    },
+    {
+      "cmd": "MOVE UP 35.0",
+      "line": 3,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 37.00,
+      "heading": 0.00,
+      "battery": 58.00,
+      "speed": 1.00,
+      "flying": true
+    },
+    {
+      "cmd": "TURN RIGHT 90",
+      "line": 4,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 37.00,
+      "heading": 90.00,
+      "battery": 58.00,
+      "speed": 1.00,
+      "flying": true
+    },
+    {
+      "cmd": "HOVER 5.0",
+      "line": 5,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 37.00,
+      "heading": 90.00,
+      "battery": 55.50,
+      "speed": 1.00,
+      "flying": true
+    },
+    {
+      "cmd": "LAND",
+      "line": 6,
+      "x": 0.00,
+      "y": 0.00,
+      "z": 0.00,
+      "heading": 90.00,
+      "battery": 55.50,
+      "speed": 1.00,
+      "flying": false
+    }
+  ],
+  "errors": [
+    "Line 1: MOVE issued before TAKEOFF",
+    "Line 3: Altitude exceeds maximum ceiling limit of 30m"
+  ],
+  "final_state": {
+    "x": 0.00,
+    "y": 0.00,
+    "z": 0.00,
+    "heading": 90.00,
+    "battery": 55.50,
+    "flying": false
+  }
+}
