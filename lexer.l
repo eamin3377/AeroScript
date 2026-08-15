@@ -43,9 +43,9 @@ extern void record_lexical_error(int line, const char* msg);
     return NUMBER;
 }
 
-"//".*           { /* Ignore single-line comments */ }
+"//".*           { }
 
-[ \t\r\n]+       { /* Ignore whitespace */ }
+[ \t\r\n]+       { }
 
 [a-zA-Z_][a-zA-Z0-9_]* {
     yylval.str_val = strdup(yytext);
