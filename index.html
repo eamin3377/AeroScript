@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroScript — Drone Movement DSL & Flight Simulator</title>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <style>
+        :root {
+            --bg-main: #F6F8FC;
+            --primary: #3B6FE0;
+            --primary-dark: #2854B8;
+            --primary-light: #EFF4FE;
+            --secondary-blue: #6C8EF5;
+            --success: #22B573;
+            --success-bg: #EAF8F1;
+            --warning: #F5A623;
+            --warning-bg: #FEF6EA;
+            --error: #EF6B67;
+            --error-bg: #FDF0F0;
+            --text-main: #172033;
+            --text-muted: #667085;
+            --card-bg: #FFFFFF;
+            --border-color: #E6EAF0;
+            --code-bg: #FAFBFD;
+            --shadow-subtle: 0 4px 20px rgba(0, 0, 0, 0.04);
+            --shadow-hover: 0 8px 30px rgba(59, 111, 224, 0.08);
+            --radius-card: 16px;
+            --radius-sm: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* TOP NAVIGATION */
+        header.top-nav {
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 2px 8px rgba(59, 111, 224, 0.3);
+        }
+
+        .brand-title {
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+        }
+
+        .brand-subtitle {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-muted);
+            background: var(--bg-main);
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        /* PIPELINE VISUALIZER */
+        .pipeline-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-main);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .pipe-stage {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: var(--text-muted);
+            transition: all 0.3s ease;
+        }
+
+        .pipe-stage.active {
+            color: var(--primary);
+        }
+
+        .pipe-stage.done {
+            color: var(--success);
+        }
+
+        .pipe-arrow {
+            color: var(--border-color);
+            font-weight: 400;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--success);
+            background: var(--success-bg);
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--success);
+            box-shadow: 0 0 0 3px rgba(34, 181, 115, 0.2);
+        }
+
+        .status-badge.compiling {
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .status-badge.compiling .status-dot {
+            background-color: var(--primary);
+            animation: pulse-dot 1s infinite alternate;
+        }
+
+        @keyframes pulse-dot {
+            0% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        .btn {
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 9px 18px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+            box-shadow: 0 2px 10px rgba(59, 111, 224, 0.25);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            box-shadow: 0 4px 14px rgba(59, 111, 224, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: white;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--bg-main);
+            border-color: #D1D5DB;
+        }
+
+        /* MAIN APP LAYOUT (RESPONSIVE GRID) */
+        main.workspace {
+            display: grid;
+            grid-template-columns: 320px 1fr 340px;
+            gap: 20px;
+            padding: 20px;
+            flex: 1;
+            max-width: 1920px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        @media (max-width: 1400px) {
+            main.workspace {
+                grid-template-columns: 300px 1fr 300px;
+                gap: 16px;
+                padding: 16px;
+            }
+        }
+
+        @media (max-width: 1100px) {
+            main.workspace {
+                grid-template-columns: 1fr 1fr;
+            }
+            .simulator-card {
+                grid-column: span 2;
+                order: -1;
+                min-height: 480px;
+            }
+            .editor-container {
+                grid-column: span 1;
+            }
+            .right-panel {
+                grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            header.top-nav {
+                padding: 0 12px;
+                height: Auto;
+                flex-wrap: wrap;
+                gap: 12px;
+                padding-top: 10px;
+                padding-bottom: 10px;
+            }
+            .pipeline-bar {
+                order: 3;
+                width: 100%;
+                justify-content: center;
+                overflow-x: auto;
+            }
+            main.workspace {
+                grid-template-columns: 1fr;
+                padding: 12px;
+                gap: 16px;
+            }
+            .simulator-card {
+                grid-column: span 1;
+                min-height: 400px;
+            }
+            .editor-container, .right-panel {
+                grid-column: span 1;
+            }
+        }
+
+        /* CARDS GENERAL */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius-card);
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-subtle);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* LEFT PANEL: CODE EDITOR */
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .editor-wrapper {
+            flex: 1;
+            position: relative;
+            background: var(--code-bg);
+            display: flex;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            min-height: 380px;
+            overflow: auto;
+        }
+
+        .line-numbers {
+            padding: 16px 0;
+            width: 44px;
+            background: rgba(0, 0, 0, 0.02);
+            color: #94A3B8;
+            text-align: right;
+            padding-right: 12px;
+            user-select: none;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .code-input-area {
+            flex: 1;
+            position: relative;
+        }
+
+        #code-editor {
+            width: 100%;
+            height: 100%;
+            border: none;
+            outline: none;
+            background: transparent;
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--text-main);
+            resize: none;
+            tab-size: 2;
+            white-space: pre;
+        }
+
+        .editor-actions {
+            padding: 14px 16px;
+            border-top: 1px solid var(--border-color);
+            background: white;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .preset-select {
+            width: 100%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-family: inherit;
+            font-size: 13px;
+            color: var(--text-main);
+            outline: none;
+            background-color: var(--bg-main);
+        }
+
+        .editor-btn-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .editor-btn-group .btn {
+            flex: 1;
+            justify-content: center;
+        }
+
+        /* CENTER PANEL: 3D SIMULATOR */
+        .simulator-card {
+            position: relative;
+            height: 100%;
+            min-height: 520px;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, #FAFCFF 0%, #EFF3FA 100%);
+        }
+
+        #sim-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* EMPTY STATE OVERLAY */
+        .empty-state-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(246, 248, 252, 0.88);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            text-align: center;
+            padding: 24px;
+            transition: opacity 0.3s ease;
+        }
+
+        .empty-state-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .empty-icon-box {
+            width: 64px;
+            height: 64px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(59, 111, 224, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            margin-bottom: 16px;
+        }
+
+        .empty-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .empty-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            max-width: 280px;
+            margin-bottom: 20px;
+        }
+
+        /* SIMULATOR CONTROLS BAR */
+        .sim-controls-bar {
+            padding: 12px 20px;
+            background: white;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .playback-buttons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .icon-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: white;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .icon-btn:hover {
+            background: var(--bg-main);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .timeline-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 180px;
+        }
+
+        .scrubber-input {
+            flex: 1;
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        .frame-counter {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .speed-toggle {
+            display: flex;
+            background: var(--bg-main);
+            padding: 3px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .speed-opt {
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .speed-opt.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        /* RIGHT PANEL: TELEMETRY & DIAGNOSTICS */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* TELEMETRY GRID */
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .metric-card {
+            background: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .metric-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .metric-val {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* COMPASS & BATTERY ANIMATIONS */
+        .compass-circle {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1.5px solid var(--primary);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .compass-needle {
+            width: 2px;
+            height: 12px;
+            background: var(--primary);
+            border-radius: 1px;
+            transform-origin: center;
+            transition: transform 0.1s linear;
+        }
+
+        .battery-bar-container {
+            height: 6px;
+            background: #E2E8F0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .battery-bar-fill {
+            height: 100%;
+            width: 100%;
+            background: var(--success);
+            border-radius: 3px;
+            transition: width 0.2s linear, background-color 0.4s ease;
+        }
+
+        /* DRONE STATUS SUMMARY CARD */
+        .status-summary-card {
+            padding: 14px 16px;
+            border-top: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 16px;
+            font-size: 12px;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .status-label { color: var(--text-muted); }
+        .status-value { font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+
+        /* FLIGHT EVENTS TIMELINE */
+        .events-card {
+            flex: 1;
+            min-height: 220px;
+            max-height: 320px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .events-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .event-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            background: var(--bg-main);
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .event-item.active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+        }
+
+        .event-item.completed {
+            border-color: var(--border-color);
+        }
+
+        .event-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .event-icon.active { background: var(--primary); color: white; }
+        .event-icon.completed { background: var(--success-bg); color: var(--success); }
+        .event-icon.error { background: var(--error-bg); color: var(--error); }
+
+        .event-details {
+            flex: 1;
+        }
+
+        .event-name {
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .event-meta {
+            color: var(--text-muted);
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        /* DIAGNOSTICS & ERRORS */
+        .diagnostics-card {
+            background: var(--error-bg);
+            border: 1px solid #FCA5A5;
+            border-radius: var(--radius-card);
+            padding: 16px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .diagnostics-card.visible {
+            display: flex;
+            animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .diag-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--error);
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .diag-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .diag-item {
+            font-size: 12px;
+            color: #991B1B;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border-left: 3px solid var(--error);
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .diag-line-badge {
+            background: var(--error-bg);
+            color: var(--error);
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        /* FLIGHT SUMMARY BANNER */
+        .summary-card {
+            background: white;
+            border-radius: var(--radius-card);
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .summary-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            background: var(--bg-main);
+            padding: 8px 10px;
+            border-radius: 8px;
+        }
+
+        .summary-val {
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOP NAVIGATION -->
+    <header class="top-nav">
+        <div class="brand-container">
+            <div class="brand-logo">
+                <div class="logo-icon">
+                    <i data-lucide="navigation-2"></i>
+                </div>
+                <span class="brand-title">AeroScript</span>
+            </div>
+            <span class="brand-subtitle">Drone Movement DSL</span>
+            <a href="docs.html" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;"><i data-lucide="book-open" style="width: 14px; height: 14px;"></i> User Manual</a>
+        </div>
+
+        <!-- COMPILER PIPELINE VISUALIZER -->
+        <div class="pipeline-bar">
+            <div class="pipe-stage active" id="pipe-lex"><i data-lucide="code"></i> LEXER</div>
+            <span class="pipe-arrow">→</span>
+            <div class="pipe-stage" id="pipe-parse"><i data-lucide="file-json"></i> PARSER</div>
+            <span class="pipe-arrow">→</span>
+            <div class="pipe-stage" id="pipe-ast"><i data-lucide="git-fork"></i> AST</div>
+            <span class="pipe-arrow">→</span>
+            <div class="pipe-stage" id="pipe-sem"><i data-lucide="shield-check"></i> SEMANTIC</div>
+            <span class="pipe-arrow">→</span>
+            <div class="pipe-stage" id="pipe-exec"><i data-lucide="play"></i> EXECUTION</div>
+        </div>
+
+        <div class="nav-right">
+            <div class="status-badge" id="status-indicator">
+                <div class="status-dot"></div>
+                <span id="status-text">Ready</span>
+            </div>
+            <button class="btn btn-primary" id="compile-btn" onclick="compileAndFly()">
+                <i data-lucide="send"></i>
+                <span>Compile & Fly</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="workspace">
+        
+        <!-- LEFT PANEL: FLIGHT PLAN / EDITOR -->
+        <section class="card editor-container">
+            <div class="card-header">
+                <span class="card-title">
+                    <i data-lucide="file-code" style="color: var(--primary);"></i>
+                    Flight Plan
+                </span>
+                <span class="card-subtitle">program.drone</span>
+            </div>
+
+            <div class="editor-wrapper">
+                <div class="line-numbers" id="line-numbers">01</div>
+                <div class="code-input-area">
+                    <textarea id="code-editor" spellcheck="false" placeholder="Enter .drone source code..."></textarea>
+                </div>
+            </div>
+
+            <div class="editor-actions">
+                <select class="preset-select" id="preset-loader" onchange="loadPreset(this.value)">
+                    <option value="valid">Example: Standard Flight Path</option>
+                    <option value="loop">Example: Repeat Square & Speed</option>
+                    <option value="error">Example: Semantic Diagnostics</option>
+                </select>
+                <div class="editor-btn-group">
+                    <button class="btn btn-secondary" onclick="clearEditor()">Clear</button>
+                    <button class="btn btn-secondary" onclick="uploadFile()">Upload</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- CENTER PANEL: 3D SIMULATOR -->
+        <section class="card simulator-card">
+            <div class="card-header">
+                <span class="card-title">
+                    <i data-lucide="box" style="color: var(--primary);"></i>
+                    3D Flight Simulator
+                </span>
+                <span class="status-badge" id="sim-status-badge">
+                    <div class="status-dot"></div>
+                    <span id="sim-status-text">READY</span>
+                </span>
+            </div>
+
+            <div class="canvas-container" id="canvas-container">
+                <canvas id="sim-canvas"></canvas>
+
+                <!-- EMPTY STATE OVERLAY -->
+                <div class="empty-state-overlay" id="empty-overlay">
+                    <div class="empty-icon-box">
+                        <i data-lucide="plane-takeoff" style="width: 32px; height: 32px;"></i>
+                    </div>
+                    <div class="empty-title">Ready for Takeoff</div>
+                    <div class="empty-desc">Load a .drone flight plan or write one in the editor to simulate.</div>
+                    <button class="btn btn-primary" onclick="compileAndFly()">
+                        <i data-lucide="play"></i> Launch Flight
+                    </button>
+                </div>
+            </div>
+
+            <!-- SIMULATOR CONTROLS BAR -->
+            <div class="sim-controls-bar">
+                <div class="playback-buttons">
+                    <button class="btn btn-primary" id="start-btn" onclick="startPlayback()" style="padding: 6px 12px; font-size: 12px; height: 34px;"><i data-lucide="play" style="width: 14px; height: 14px;"></i> Start</button>
+                    <button class="btn btn-secondary" id="stop-btn" onclick="pausePlayback()" style="padding: 6px 12px; font-size: 12px; height: 34px; color: var(--error); border-color: #FCA5A5;"><i data-lucide="square" style="width: 14px; height: 14px;"></i> Stop</button>
+                    <button class="icon-btn" onclick="prevFrame()" title="Previous Frame"><i data-lucide="skip-back"></i></button>
+                    <button class="icon-btn" onclick="nextFrame()" title="Next Frame"><i data-lucide="skip-forward"></i></button>
+                    <button class="icon-btn" onclick="resetSim()" title="Restart"><i data-lucide="rotate-ccw"></i></button>
+                </div>
+
+                <div class="timeline-wrapper">
+                    <input type="range" min="0" max="0" value="0" class="scrubber-input" id="sim-scrubber" oninput="onScrub(this.value)">
+                    <span class="frame-counter" id="frame-counter">Frame 00 / 00</span>
+                </div>
+
+                <div class="speed-toggle">
+                    <div class="speed-opt" onclick="setSpeed(0.5, this)">0.5x</div>
+                    <div class="speed-opt active" onclick="setSpeed(1.0, this)">1x</div>
+                    <div class="speed-opt" onclick="setSpeed(2.0, this)">2x</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL: TELEMETRY & DIAGNOSTICS -->
+        <section class="right-panel">
+            
+            <!-- LIVE TELEMETRY CARD -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">
+                        <i data-lucide="activity" style="color: var(--primary);"></i>
+                        Live Telemetry
+                    </span>
+                </div>
+
+                <div class="telemetry-grid">
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span>Altitude</span>
+                            <i data-lucide="arrow-up-right" style="width: 16px; height: 16px; color: var(--primary);"></i>
+                        </div>
+                        <div class="metric-val" id="tele-alt">0.0 m</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span>Speed</span>
+                            <i data-lucide="gauge" style="width: 16px; height: 16px; color: var(--primary);"></i>
+                        </div>
+                        <div class="metric-val" id="tele-speed">1.0 m/s</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span>Heading</span>
+                            <div class="compass-circle">
+                                <div class="compass-needle" id="compass-needle"></div>
+                            </div>
+                        </div>
+                        <div class="metric-val" id="tele-heading">0°</div>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="metric-header">
+                            <span>Battery</span>
+                            <i data-lucide="battery-charging" style="width: 16px; height: 16px; color: var(--success);" id="bat-icon"></i>
+                        </div>
+                        <div class="metric-val" id="tele-battery">100%</div>
+                        <div class="battery-bar-container">
+                            <div class="battery-bar-fill" id="battery-fill"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DRONE STATUS SUMMARY -->
+                <div class="status-summary-card">
+                    <div class="status-row">
+                        <span class="status-label">Status:</span>
+                        <span class="status-value" id="status-airborne" style="color: var(--text-muted);">GROUNDED</span>
+                    </div>
+                    <div class="status-row">
+                        <span class="status-label">Pos:</span>
+                        <span class="status-value" id="status-pos">X 0 Y 0 Z 0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DIAGNOSTICS AREA -->
+            <div class="diagnostics-card" id="diagnostics-card">
+                <div class="diag-header">
+                    <i data-lucide="alert-triangle"></i>
+                    <span id="diag-count-title">Semantic Problems Detected</span>
+                </div>
+                <div class="diag-list" id="diag-list"></div>
+            </div>
+
+            <!-- FLIGHT EVENTS TIMELINE -->
+            <div class="card events-card">
+                <div class="card-header">
+                    <span class="card-title">
+                        <i data-lucide="list-tree" style="color: var(--primary);"></i>
+                        Flight Events
+                    </span>
+                </div>
+                <div class="events-list" id="events-list">
+                    <div style="font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 20px;">
+                        No flight log loaded.
+                    </div>
+                </div>
+            </div>
+
+            <!-- FLIGHT SUMMARY -->
+            <div class="summary-card" id="summary-card" style="display: none;">
+                <div class="summary-title">
+                    <i data-lucide="check-circle-2" style="color: var(--success);"></i>
+                    Flight Summary
+                </div>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span>Commands</span>
+                        <span class="summary-val" id="sum-cmd">0</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>Distance</span>
+                        <span class="summary-val" id="sum-dist">0 m</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>Max Alt</span>
+                        <span class="summary-val" id="sum-alt">0 m</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>Battery Used</span>
+                        <span class="summary-val" id="sum-bat">0%</span>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- APPLICATION LOGIC & THREE.JS SETUP -->
+    <script>
+        // Preset DSL Code Samples
+        const PRESETS = {
+            valid: `START\nSET BATTERY 100\nSET SPEED 1.5\nTAKEOFF\nMOVE FORWARD 10\nTURN RIGHT 90\nMOVE FORWARD 8\nHOVER 3\nRETURN_HOME\nLAND\nSTOP`,
+            loop: `START\nSET BATTERY 100\nSET SPEED 2.0\nTAKEOFF\nMOVE UP 5\nREPEAT 4 [\n  MOVE FORWARD 6\n  TURN RIGHT 90\n]\nHOVER 2\nRETURN_HOME\nLAND\nSTOP`,
+            error: `TAKEOFF\nMOVE FORWARD 10\nMOVE UP 35\nTURN RIGHT 90\nHOVER 5\nLAND\nSTOP`
+        };
+
+        // State Management
+        let flightData = null;
+        let currentFrameIdx = 0;
+        let isPlaying = false;
+        let playbackSpeed = 1.0;
+
+        // Smooth Continuous Animation State
+        let animationCurve = null;
+        let animationStartTimestamp = 0;
+        let totalFlightDuration = 0; // seconds
+        let isAnimatingContinuous = false;
+
+        // Three.js Scene Variables
+        let scene, camera, renderer, droneGroup, flightPathLine, waypointsGroup, propellors = [];
+
+        // Initialize Application
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            setupEditor();
+            initThreeJS();
+            loadPreset('valid');
+        });
+
+        // Setup Line Numbers
+        function setupEditor() {
+            const editor = document.getElementById('code-editor');
+            const lineNums = document.getElementById('line-numbers');
+
+            function updateLines() {
+                const lines = editor.value.split('\n').length;
+                let numHTML = '';
+                for (let i = 1; i <= lines; i++) {
+                    numHTML += `${i < 10 ? '0' + i : i}<br>`;
+                }
+                lineNums.innerHTML = numHTML;
+            }
+
+            editor.addEventListener('input', updateLines);
+            updateLines();
+        }
+
+        function loadPreset(key) {
+            const editor = document.getElementById('code-editor');
+            editor.value = PRESETS[key] || '';
+            setupEditor();
+        }
+
+        function clearEditor() {
+            document.getElementById('code-editor').value = '';
+            setupEditor();
+        }
+
+        function uploadFile() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.drone,.txt';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = event => {
+                    document.getElementById('code-editor').value = event.target.result;
+                    setupEditor();
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // Pipeline Stage Animation
+        function setPipelineStage(stage) {
+            const stages = ['pipe-lex', 'pipe-parse', 'pipe-ast', 'pipe-sem', 'pipe-exec'];
+            stages.forEach((id, idx) => {
+                const el = document.getElementById(id);
+                el.classList.remove('active', 'done');
+                if (idx < stage) el.classList.add('done');
+                else if (idx === stage) el.classList.add('active');
+            });
+        }
+
+        // Compile & Fly Execution
+        async function compileAndFly() {
+            const code = document.getElementById('code-editor').value;
+            if (!code.trim()) return;
+
+            const statusBadge = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+            const compileBtn = document.getElementById('compile-btn');
+
+            statusBadge.classList.add('compiling');
+            statusText.innerText = 'Compiling...';
+            compileBtn.disabled = true;
+
+            // Animate Pipeline stages visually
+            setPipelineStage(0);
+            await new Promise(r => setTimeout(r, 120));
+            setPipelineStage(1);
+            await new Promise(r => setTimeout(r, 120));
+            setPipelineStage(2);
+            await new Promise(r => setTimeout(r, 120));
+            setPipelineStage(3);
+
+            try {
+                const response = await fetch('/compile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: code
+                });
+
+                if (!response.ok) throw new Error('Compile request failed');
+                flightData = await response.json();
+
+                setPipelineStage(4);
+                statusBadge.classList.remove('compiling');
+                statusText.innerText = 'Flight Ready';
+
+                // Load into UI
+                renderFlightData(flightData);
+
+            } catch (err) {
+                console.error(err);
+                statusBadge.classList.remove('compiling');
+                statusText.innerText = 'Error';
+            } finally {
+                compileBtn.disabled = false;
+            }
+        }
+
+        // Render Flight Data & Telemetry
+        function renderFlightData(data) {
+            document.getElementById('empty-overlay').classList.add('hidden');
+            
+            // Diagnostics
+            const diagCard = document.getElementById('diagnostics-card');
+            const diagList = document.getElementById('diag-list');
+            if (data.errors && data.errors.length > 0) {
+                diagCard.classList.add('visible');
+                diagList.innerHTML = data.errors.map(err => {
+                    const match = err.match(/Line (\d+): (.*)/);
+                    const line = match ? match[1] : '?';
+                    const msg = match ? match[2] : err;
+                    return `<div class="diag-item"><span class="diag-line-badge">Line ${line}</span><span>${msg}</span></div>`;
+                }).join('');
+            } else {
+                diagCard.classList.remove('visible');
+            }
+
+            // Events List
+            const eventsList = document.getElementById('events-list');
+            eventsList.innerHTML = data.frames.map((f, i) => `
+                <div class="event-item ${i === 0 ? 'active' : ''}" id="event-item-${i}" onclick="jumpToFrame(${i})">
+                    <div class="event-icon ${i === 0 ? 'active' : 'completed'}">
+                        <i data-lucide="${f.cmd.includes('TAKEOFF') ? 'plane-takeoff' : f.cmd.includes('LAND') ? 'plane-landing' : 'check'}" style="width: 12px; height: 12px;"></i>
+                    </div>
+                    <div class="event-details">
+                        <div class="event-name">
+                            <span>${f.cmd}</span>
+                            <span style="font-size: 10px; color: var(--text-muted);">Line ${f.line}</span>
+                        </div>
+                        <div class="event-meta">X: ${f.x.toFixed(1)}m, Y: ${f.y.toFixed(1)}m, Z: ${f.z.toFixed(1)}m</div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+
+            // Scrubber Setup
+            const scrubber = document.getElementById('sim-scrubber');
+            scrubber.max = data.frames.length - 1;
+            scrubber.value = 0;
+            currentFrameIdx = 0;
+
+            // Summary Card
+            if (data.frames.length > 0) {
+                document.getElementById('summary-card').style.display = 'flex';
+                document.getElementById('sum-cmd').innerText = data.frames.length - 1;
+                
+                let maxZ = 0;
+                let totalDist = 0;
+                data.frames.forEach((f, idx) => { 
+                    if (f.z > maxZ) maxZ = f.z; 
+                    if (idx > 0) {
+                        const prev = data.frames[idx-1];
+                        const dx = f.x - prev.x;
+                        const dy = f.y - prev.y;
+                        const dz = f.z - prev.z;
+                        totalDist += Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    }
+                });
+                document.getElementById('sum-alt').innerText = `${maxZ.toFixed(1)} m`;
+                document.getElementById('sum-dist').innerText = `${totalDist.toFixed(1)} m`;
+
+                const initialBat = data.frames[0].battery;
+                const finalBat = data.final_state.battery || 0;
+                document.getElementById('sum-bat').innerText = `${(initialBat - finalBat).toFixed(0)}%`;
+            }
+
+            // Build 3D Path & Continuous Interpolation Spline
+            buildFlightPath(data.frames);
+            updateSimFrame(0);
+            startPlayback();
+        }
+
+        // THREE.JS SIMULATOR SETUP
+        function initThreeJS() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xF6F8FC);
+
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            camera.position.set(25, 25, 25);
+
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('sim-canvas'), antialias: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 2, 0);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(20, 40, 20);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // Ground Grid Floor
+            const gridHelper = new THREE.GridHelper(60, 30, 0x3B6FE0, 0xE6EAF0);
+            gridHelper.position.y = 0;
+            scene.add(gridHelper);
+
+            // Home Marker
+            const homeGeo = new THREE.RingGeometry(0.8, 1.2, 32);
+            homeGeo.rotateX(-Math.PI / 2);
+            const homeMat = new THREE.MeshBasicMaterial({ color: 0x3B6FE0, side: THREE.DoubleSide });
+            const homeMesh = new THREE.Mesh(homeGeo, homeMat);
+            homeMesh.position.set(0, 0.02, 0);
+            scene.add(homeMesh);
+
+            // Create Drone Model Group
+            droneGroup = new THREE.Group();
+            
+            // Central Body Box
+            const bodyGeo = new THREE.BoxGeometry(1.2, 0.25, 1.2);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2854B8, roughness: 0.3 });
+            const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+            droneGroup.add(bodyMesh);
+
+            // Directional Nose Marker (Forward Indicator)
+            const noseGeo = new THREE.ConeGeometry(0.2, 0.5, 16);
+            noseGeo.rotateX(Math.PI / 2);
+            const noseMat = new THREE.MeshStandardMaterial({ color: 0xEF6B67 });
+            const noseMesh = new THREE.Mesh(noseGeo, noseMat);
+            noseMesh.position.set(0, 0.15, -0.7);
+            droneGroup.add(noseMesh);
+
+            // Rotor Arms & Spinning Propellers
+            const armMat = new THREE.MeshStandardMaterial({ color: 0x6C8EF5 });
+            const arm1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.2), armMat);
+            arm1.rotation.z = Math.PI / 2;
+            arm1.rotation.y = Math.PI / 4;
+            droneGroup.add(arm1);
+
+            const arm2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.2), armMat);
+            arm2.rotation.z = Math.PI / 2;
+            arm2.rotation.y = -Math.PI / 4;
+            droneGroup.add(arm2);
+
+            // Add 4 Spinning Propeller Discs at arm tips
+            const propGeo = new THREE.BoxGeometry(0.9, 0.02, 0.1);
+            const propMat = new THREE.MeshStandardMaterial({ color: 0x172033 });
+            const propPos = [
+                {x: 0.75, z: 0.75},
+                {x: -0.75, z: 0.75},
+                {x: 0.75, z: -0.75},
+                {x: -0.75, z: -0.75}
+            ];
+            propellors = [];
+            propPos.forEach(p => {
+                const prop = new THREE.Mesh(propGeo, propMat);
+                prop.position.set(p.x, 0.18, p.z);
+                droneGroup.add(prop);
+                propellors.push(prop);
+            });
+
+            scene.add(droneGroup);
+
+            // Flight Path Line Container
+            const pathMat = new THREE.LineBasicMaterial({ color: 0x3B6FE0, linewidth: 3 });
+            const pathGeo = new THREE.BufferGeometry();
+            flightPathLine = new THREE.Line(pathGeo, pathMat);
+            scene.add(flightPathLine);
+
+            waypointsGroup = new THREE.Group();
+            scene.add(waypointsGroup);
+
+            // Resize listener
+            window.addEventListener('resize', onWindowResize);
+
+            // Smooth Render Loop with Propeller Spin
+            function animate(timestamp) {
+                requestAnimationFrame(animate);
+
+                // Spin propellers when active
+                if (propellors.length > 0) {
+                    propellors.forEach(p => p.rotation.y += 0.3);
+                }
+
+                // Smooth Continuous Drone Movement Interpolation
+                if (isPlaying && flightData && flightData.frames.length > 1) {
+                    if (!animationStartTimestamp) animationStartTimestamp = timestamp;
+                    const elapsed = (timestamp - animationStartTimestamp) / 1000 * playbackSpeed;
+                    
+                    // Each frame step gets approx 1.2s flight duration
+                    const timePerFrame = 1.2;
+                    const totalDuration = (flightData.frames.length - 1) * timePerFrame;
+                    const currentProgress = (elapsed % totalDuration) / totalDuration;
+                    
+                    const frameFloat = currentProgress * (flightData.frames.length - 1);
+                    const idxLower = Math.floor(frameFloat);
+                    const idxUpper = Math.min(idxLower + 1, flightData.frames.length - 1);
+                    const alpha = frameFloat - idxLower;
+
+                    if (idxLower !== currentFrameIdx) {
+                        currentFrameIdx = idxLower;
+                        updateTelemetryUI(currentFrameIdx);
+                    }
+
+                    // Smooth Linear Interpolation between frame points
+                    const f1 = flightData.frames[idxLower];
+                    const f2 = flightData.frames[idxUpper];
+
+                    const currX = THREE.MathUtils.lerp(f1.x, f2.x, alpha);
+                    const currY = THREE.MathUtils.lerp(f1.y, f2.y, alpha); // depth
+                    const currZ = THREE.MathUtils.lerp(f1.z, f2.z, alpha); // altitude
+
+                    // Smooth shortest-path angle interpolation
+                    let dHeading = f2.heading - f1.heading;
+                    while (dHeading < -180) dHeading += 360;
+                    while (dHeading > 180) dHeading -= 360;
+                    const currHeading = f1.heading + dHeading * alpha;
+
+                    droneGroup.position.set(currX, currZ, currY);
+                    droneGroup.rotation.y = -currHeading * (Math.PI / 180.0);
+
+                    // Update Scrubber Position smoothly
+                    document.getElementById('sim-scrubber').value = idxLower;
+                    document.getElementById('frame-counter').innerText = `Frame ${idxLower < 10 ? '0' + idxLower : idxLower} / ${flightData.frames.length - 1}`;
+                }
+
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            requestAnimationFrame(animate);
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            if (!container) return;
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // Build Flight Path Visuals
+        function buildFlightPath(frames) {
+            const points = [];
+            while(waypointsGroup.children.length > 0){ 
+                waypointsGroup.remove(waypointsGroup.children[0]); 
+            }
+
+            frames.forEach((f, idx) => {
+                // Three.js coordinates: X = x, Y = z (altitude), Z = y (depth)
+                const pt = new THREE.Vector3(f.x, f.z, f.y);
+                points.push(pt);
+
+                if (idx > 0 && f.cmd !== 'INIT') {
+                    const wpGeo = new THREE.SphereGeometry(0.25, 16, 16);
+                    const wpMat = new THREE.MeshStandardMaterial({ color: 0x22B573 });
+                    const wpMesh = new THREE.Mesh(wpGeo, wpMat);
+                    wpMesh.position.copy(pt);
+                    waypointsGroup.add(wpMesh);
+                }
+            });
+
+            flightPathLine.geometry.setFromPoints(points);
+        }
+
+        // Update Discrete Telemetry UI
+        function updateTelemetryUI(idx) {
+            if (!flightData || !flightData.frames[idx]) return;
+            const frame = flightData.frames[idx];
+
+            document.getElementById('tele-alt').innerText = `${frame.z.toFixed(1)} m`;
+            document.getElementById('tele-speed').innerText = `${frame.speed.toFixed(1)} m/s`;
+            document.getElementById('tele-heading').innerText = `${frame.heading.toFixed(0)}°`;
+            document.getElementById('compass-needle').style.transform = `rotate(${frame.heading}deg)`;
+
+            const batVal = Math.max(0, frame.battery);
+            document.getElementById('tele-battery').innerText = `${batVal.toFixed(0)}%`;
+            
+            const batFill = document.getElementById('battery-fill');
+            batFill.style.width = `${batVal}%`;
+            if (batVal > 50) batFill.style.backgroundColor = 'var(--success)';
+            else if (batVal > 20) batFill.style.backgroundColor = 'var(--warning)';
+            else batFill.style.backgroundColor = 'var(--error)';
+
+            document.getElementById('status-airborne').innerText = frame.flying ? 'AIRBORNE' : 'GROUNDED';
+            document.getElementById('status-airborne').style.color = frame.flying ? 'var(--success)' : 'var(--text-muted)';
+            document.getElementById('status-pos').innerText = `X ${frame.x.toFixed(1)} Y ${frame.y.toFixed(1)} Z ${frame.z.toFixed(1)}`;
+
+            // Highlight Active Event Item
+            const eventItems = document.querySelectorAll('.event-item');
+            eventItems.forEach((item, i) => {
+                item.classList.remove('active');
+                if (i === idx) {
+                    item.classList.add('active');
+                    item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        }
+
+        // Update Discrete Frame State (For scrubbing or manual jumps)
+        function updateSimFrame(idx) {
+            if (!flightData || !flightData.frames[idx]) return;
+            currentFrameIdx = idx;
+            const frame = flightData.frames[idx];
+
+            droneGroup.position.set(frame.x, frame.z, frame.y);
+            droneGroup.rotation.y = -frame.heading * (Math.PI / 180.0);
+
+            document.getElementById('sim-scrubber').value = idx;
+            document.getElementById('frame-counter').innerText = `Frame ${idx < 10 ? '0' + idx : idx} / ${flightData.frames.length - 1}`;
+            updateTelemetryUI(idx);
+        }
+
+        // Playback Controls
+        function togglePlay() {
+            if (isPlaying) pausePlayback();
+            else startPlayback();
+        }
+
+        function startPlayback() {
+            if (!flightData) return;
+            isPlaying = true;
+            animationStartTimestamp = 0;
+            document.getElementById('play-btn').innerHTML = '<i data-lucide="pause"></i>';
+            lucide.createIcons();
+        }
+
+        function pausePlayback() {
+            isPlaying = false;
+            document.getElementById('play-btn').innerHTML = '<i data-lucide="play"></i>';
+            lucide.createIcons();
+        }
+
+        function prevFrame() {
+            pausePlayback();
+            if (currentFrameIdx > 0) updateSimFrame(currentFrameIdx - 1);
+        }
+
+        function nextFrame() {
+            pausePlayback();
+            if (flightData && currentFrameIdx < flightData.frames.length - 1) {
+                updateSimFrame(currentFrameIdx + 1);
+            }
+        }
+
+        function resetSim() {
+            pausePlayback();
+            updateSimFrame(0);
+        }
+
+        function onScrub(val) {
+            pausePlayback();
+            updateSimFrame(parseInt(val, 10));
+        }
+
+        function jumpToFrame(idx) {
+            pausePlayback();
+            updateSimFrame(idx);
+        }
+
+        function setSpeed(spd, el) {
+            playbackSpeed = spd;
+            document.querySelectorAll('.speed-opt').forEach(opt => opt.classList.remove('active'));
+            el.classList.add('active');
+        }
+    </script>
+</body>
+</html>
